@@ -41,7 +41,7 @@ func main() {
 	}
 	l := &LogMinerStream{
 		oracleDB:                 oracleConn,
-		startScn:                 2138808,
+		startScn:                 0,
 		committedScn:             0,
 		interval:                 100000,
 		initialized:              false,
@@ -49,7 +49,7 @@ func main() {
 		OracleTxNum:              0,
 	}
 
-	{
+	for {
 		time.Sleep(5 * time.Second)
 		// changed, err := l.checkRedoLogChanged()
 		// if err != nil {
@@ -69,6 +69,10 @@ func main() {
 		if err != nil {
 			return
 		}
+		endScn, _ := l.GetCurrentSnapshotSCN()
+		if endScn > l.startScn+l.interval {
+			endScn = l.startScn + l.interval
+		}
 		// endScn, err := l.getEndScn()
 		// if err != nil {
 		// 	return err
@@ -77,18 +81,19 @@ func main() {
 		// 	continue
 		// }
 
-		err = l.StartLogMinerBySCN2(l.startScn, 2203274 /*l.startScn+100000*/)
+		err = l.StartLogMinerBySCN2(l.startScn, endScn)
 		if err != nil {
 			fmt.Println("StartLMBySCN ", err)
 			return
 		}
 		// l.logger.Info("Get log miner record form", "StartScn", l.startScn, "EndScn", endScn)
 		records := make(chan *LogMinerRecord, 100)
-		err = l.GetLogMinerRecord(l.startScn, 2203274 /*l.startScn+100000*/, records)
+		err = l.GetLogMinerRecord(l.startScn, l.startScn+10000, records)
 		if err != nil {
 			// l.logger.Error("GetLogMinerRecord ", "err", err)
 			return
 		}
+		l.startScn = endScn
 	}
 	// startLoopQuery(oracleConn)
 
@@ -424,7 +429,7 @@ WHERE
 		records1 = append(records1, lr)
 	}
 	for _, r := range records1 {
-		if r.Operation == 1 || r.Operation == 2 || r.Operation == 3 {
+		if r.Operation == 1 || r.Operation == 2 || r.Operation == 3 || r.Operation == 5 {
 			fmt.Println(r.SQLRedo)
 		}
 	}
